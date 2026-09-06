@@ -5,5 +5,5 @@ examples/
 .purities
 Cargo.lock
 Cargo.toml
-LISENCE
+LICENSE
 *.md
