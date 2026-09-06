@@ -1,0 +1,28 @@
+{
+  "id": {
+    "type_name": "Task",
+    "object_id": "task5"
+  },
+  "fields": {
+    "description": {
+      "type": "String",
+      "value": "Ensure responsive design on mobile"
+    },
+    "title": {
+      "type": "String",
+      "value": "Fix mobile layout"
+    },
+    "id": {
+      "type": "String",
+      "value": "task5"
+    },
+    "status": {
+      "type": "String",
+      "value": "completed"
+    },
+    "priority": {
+      "type": "Integer",
+      "value": 3
+    }
+  }
+}

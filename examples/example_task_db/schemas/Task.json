@@ -1,0 +1,45 @@
+{
+  "name": "Task",
+  "fields": {
+    "priority": {
+      "name": "priority",
+      "field_type": "integer",
+      "required": true,
+      "nullable": false,
+      "default": null,
+      "reference_type": null
+    },
+    "status": {
+      "name": "status",
+      "field_type": "string",
+      "required": true,
+      "nullable": false,
+      "default": null,
+      "reference_type": null
+    },
+    "id": {
+      "name": "id",
+      "field_type": "string",
+      "required": true,
+      "nullable": false,
+      "default": null,
+      "reference_type": null
+    },
+    "description": {
+      "name": "description",
+      "field_type": "string",
+      "required": false,
+      "nullable": false,
+      "default": null,
+      "reference_type": null
+    },
+    "title": {
+      "name": "title",
+      "field_type": "string",
+      "required": true,
+      "nullable": false,
+      "default": null,
+      "reference_type": null
+    }
+  }
+}

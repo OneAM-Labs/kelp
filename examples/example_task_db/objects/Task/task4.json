@@ -1,0 +1,28 @@
+{
+  "id": {
+    "type_name": "Task",
+    "object_id": "task4"
+  },
+  "fields": {
+    "priority": {
+      "type": "Integer",
+      "value": 2
+    },
+    "id": {
+      "type": "String",
+      "value": "task4"
+    },
+    "description": {
+      "type": "String",
+      "value": "Configure GitHub Actions"
+    },
+    "status": {
+      "type": "String",
+      "value": "pending"
+    },
+    "title": {
+      "type": "String",
+      "value": "Setup CI/CD pipeline"
+    }
+  }
+}

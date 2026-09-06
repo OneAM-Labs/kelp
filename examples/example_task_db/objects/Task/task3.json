@@ -1,0 +1,28 @@
+{
+  "id": {
+    "type_name": "Task",
+    "object_id": "task3"
+  },
+  "fields": {
+    "status": {
+      "type": "String",
+      "value": "pending"
+    },
+    "description": {
+      "type": "String",
+      "value": "Create user guide and API docs"
+    },
+    "id": {
+      "type": "String",
+      "value": "task3"
+    },
+    "title": {
+      "type": "String",
+      "value": "Write documentation"
+    },
+    "priority": {
+      "type": "Integer",
+      "value": 2
+    }
+  }
+}

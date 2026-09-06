@@ -1,0 +1,28 @@
+{
+  "id": {
+    "type_name": "Task",
+    "object_id": "task1"
+  },
+  "fields": {
+    "title": {
+      "type": "String",
+      "value": "Implement user authentication"
+    },
+    "status": {
+      "type": "String",
+      "value": "in_progress"
+    },
+    "priority": {
+      "type": "Integer",
+      "value": 1
+    },
+    "description": {
+      "type": "String",
+      "value": "Add login/signup functionality"
+    },
+    "id": {
+      "type": "String",
+      "value": "task1"
+    }
+  }
+}
