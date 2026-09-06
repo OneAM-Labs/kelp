@@ -17,7 +17,6 @@ Kelp is a modern embedded database designed for developers who want the simplici
 ✅ **Interactive Shell** - Built-in REPL for exploration and development
 ✅ **Debugging Tools** - Performance metrics, storage tracking, execution timing
 ✅ **SDK Ready** - Simple, well-documented Rust API for embedding in your apps
-
 ## Installation
 
 ### Using DAM
@@ -38,18 +37,31 @@ dam import --branch main https://github.com/OneAM-Labs/kelp.git
 
 For more information about DAM, installation options, pre-built binaries, and manual installation from source, see the **[DAM README](https://github.com/OneAM-Labs/dam)**.
 
-### Manual Build from Source
+### Import Using Git
 
-If you prefer to build Kelp manually from its source code, first import the repository with DAM:
+If you prefer to use Git directly, clone the Kelp repository:
 
 ```bash
-dam import https://github.com/OneAM-Labs/kelp.git
+git clone https://github.com/OneAM-Labs/kelp.git
 ```
 
-Then enter the imported project and build it with Cargo:
+To clone a specific branch:
+
+```bash
+git clone --branch main https://github.com/OneAM-Labs/kelp.git
+```
+
+Then enter the cloned project directory:
 
 ```bash
 cd kelp
+```
+
+### Build from Source
+
+Once you have the Kelp source code, build it using Cargo:
+
+```bash
 cargo build --release
 ```
 
