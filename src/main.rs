@@ -357,7 +357,7 @@ fn print_main_help() {
     println!("  --help, -h             Show this help message\n");
 
     println!("For more information and tutorials, visit:");
-    println!("  https://github.com/yourusername/kelp\n");
+    println!("  https://github.com/OneAM-Labs/kelp\n");
 }
 
 
