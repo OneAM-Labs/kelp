@@ -101,7 +101,8 @@ fn handle_delete(args: &[String]) {
 
     let path = Path::new(&args[0]);
 
-    if !path.exists() {
+    let metadata_path = path.join(".kelp");
+    if !metadata_path.exists() {
         eprintln!("Database not found at: {}", path.display());
         return;
     }
@@ -134,7 +135,8 @@ fn handle_inspect(args: &[String]) {
         PathBuf::from(&args[0])
     };
 
-    if !path.exists() {
+    let metadata_path = path.join(".kelp");
+    if !metadata_path.exists() {
         eprintln!("Database not found at: {}", path.display());
         return;
     }
@@ -187,6 +189,15 @@ fn handle_shell(args: &[String]) {
     };
 
     if !path.exists() {
+        eprintln!("Database not found at: {}", path.display());
+        eprintln!("\nCreate a database first:");
+        eprintln!("  kelp create {}", path.display());
+        return;
+    }
+
+    // Check if database has been initialized (must have .kelp metadata directory)
+    let metadata_path = path.join(".kelp");
+    if !metadata_path.exists() {
         eprintln!("Database not found at: {}", path.display());
         eprintln!("\nCreate a database first:");
         eprintln!("  kelp create {}", path.display());
