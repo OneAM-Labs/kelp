@@ -1,7 +1,7 @@
 //! Example: Task Management Application
 //!
 //! This example demonstrates how to use Kelp as the backend for a simple task management app.
-//! 
+//!
 //! Run with: cargo run --example task_manager --release
 //!
 //! Features demonstrated:
@@ -11,7 +11,7 @@
 //! - Filtering and sorting results
 //! - Database inspection
 
-use kelp_db::{Database, Schema, FieldDef, FieldType, Object, Value, Predicate};
+use kelp_db::{Database, FieldDef, FieldType, Object, Predicate, Schema, Value};
 
 #[derive(Debug)]
 struct Task {
@@ -29,9 +29,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create or open the database
     let db_path = "./example_task_db";
-    let db = Database::open_local(db_path)?;
+    let db = Database::open(db_path)?;
 
-    println!("📦 Database: {} (path: {})", db.name().unwrap_or_default(), db_path);
+    println!(
+        "📦 Database: {} (path: {})",
+        db.name().unwrap_or_default(),
+        db_path
+    );
 
     // Initialize schema if not already done
     initialize_schema(&db)?;
@@ -52,7 +56,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     show_database_stats(&db)?;
 
     println!("\n✓ Example completed successfully!");
-    println!("\nTip: Run 'kelp shell {}' to explore the database interactively", db_path);
+    println!(
+        "\nTip: Run 'kelp shell {}' to explore the database interactively",
+        db_path
+    );
 
     Ok(())
 }
@@ -190,13 +197,16 @@ fn display_pending_tasks(db: &Database) -> Result<(), Box<dyn std::error::Error>
                 .get_field("title")
                 .and_then(|v| v.as_string())
                 .unwrap_or("(no title)");
-            let priority = obj.get_field("priority").and_then(|v| {
-                if let Value::Integer(p) = v {
-                    Some(*p)
-                } else {
-                    None
-                }
-            }).unwrap_or(0);
+            let priority = obj
+                .get_field("priority")
+                .and_then(|v| {
+                    if let Value::Integer(p) = v {
+                        Some(*p)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
             let priority_label = match priority {
                 1 => "HIGH",
                 2 => "MED",

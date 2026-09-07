@@ -5,6 +5,7 @@ use crate::query::{Predicate, QueryResult};
 use crate::reference::{Reference, ReferenceTracker};
 use crate::schema::Schema;
 use crate::storage::{LocalStorage, StorageBackend};
+use crate::storage::paged_storage::PagedStorage;
 use crate::transaction::Transaction;
 use crate::validation::Validator;
 use crate::value::Value;
@@ -111,7 +112,9 @@ impl Database {
         } else {
             let _ = storage.set_database_name(&default_name);
         }
-        let name = storage.database_name().unwrap_or_else(|_| default_name.clone());
+        let name = storage
+            .database_name()
+            .unwrap_or_else(|_| default_name.clone());
         if name == "kelp-db" || storage.database_name().unwrap_or_default() == "kelp-db" {
             let _ = storage.set_database_name(&default_name);
         }
@@ -120,6 +123,29 @@ impl Database {
             transaction: Arc::new(Mutex::new(Transaction::new())),
             path: data_dir,
         })
+    }
+
+    /// Open (or create) a paged database at the given directory.
+    /// This uses the page-backed persistent storage (.kelp/pages.db).
+    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        let data_dir = path.as_ref().to_path_buf();
+        std::fs::create_dir_all(&data_dir).map_err(|e| Error::StorageError {
+            reason: format!("Failed to create data dir: {}", e),
+        })?;
+
+        let mut storage = Box::new(PagedStorage::new(&data_dir)?);
+        let default_name = Self::name_for_path(&data_dir);
+        let _ = storage.set_database_name(&default_name);
+        Ok(Self {
+            storage: Arc::new(Mutex::new(storage)),
+            transaction: Arc::new(Mutex::new(Transaction::new())),
+            path: data_dir,
+        })
+    }
+
+    /// Create a new paged database directory and initialize it.
+    pub fn create(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        Self::open(path)
     }
 
     /// Create a new in-memory database (useful for testing).
@@ -151,7 +177,9 @@ impl Database {
     /// Return a compact health summary for this database.
     pub fn inspect(&self) -> Result<DatabaseSummary> {
         let summary = self.storage.lock().unwrap().inspect()?;
-        let name = self.name().unwrap_or_else(|_| Self::name_for_path(&self.path));
+        let name = self
+            .name()
+            .unwrap_or_else(|_| Self::name_for_path(&self.path));
         Ok(DatabaseSummary {
             name,
             path: self.path.display().to_string(),
@@ -203,18 +231,28 @@ impl Database {
     ///
     /// # Example
     /// ```ignore
-    /// let results = db.query_by_field("User", "email", 
+    /// let results = db.query_by_field("User", "email",
     ///     Value::String("alice@example.com".to_string()))?;
     /// for user in &results.objects {
     ///     println!("Found: {}", user.id);
     /// }
     /// ```
-    pub fn query_by_field(&self, type_name: &str, field: &str, value: Value) -> Result<QueryResult> {
+    pub fn query_by_field(
+        &self,
+        type_name: &str,
+        field: &str,
+        value: Value,
+    ) -> Result<QueryResult> {
         self.query(type_name, &Predicate::equals(field, value))
     }
 
     /// Return the first object whose field matches an exact value.
-    pub fn find_by_field(&self, type_name: &str, field: &str, value: Value) -> Result<Option<Object>> {
+    pub fn find_by_field(
+        &self,
+        type_name: &str,
+        field: &str,
+        value: Value,
+    ) -> Result<Option<Object>> {
         self.query_one(type_name, &Predicate::equals(field, value))
     }
 
@@ -226,12 +264,12 @@ impl Database {
         field: &str,
         value: Value,
     ) -> Result<()> {
-        let mut object = self
-            .get_object(type_name, object_id)?
-            .ok_or_else(|| Error::ObjectNotFound {
-                type_name: type_name.to_string(),
-                object_id: object_id.to_string(),
-            })?;
+        let mut object =
+            self.get_object(type_name, object_id)?
+                .ok_or_else(|| Error::ObjectNotFound {
+                    type_name: type_name.to_string(),
+                    object_id: object_id.to_string(),
+                })?;
         object.set_field(field, value);
         self.update_object(&object)
     }

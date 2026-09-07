@@ -18,5 +18,11 @@ thiserror = "1.0"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 rustyline = "14.0"
 chrono = "0.4"
+base64 = "0.21"
+tiny_http = "0.12"
+rand = "0.8"
+rayon = "1.5"
+num_cpus = "1.0"
 
 [dev-dependencies]
+tempfile = "3.6"
