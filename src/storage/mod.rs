@@ -1,4 +1,12 @@
+pub mod binary_codec;
+pub mod cache;
 mod local;
+pub mod location_index;
+pub mod page;
+pub mod page_manager;
+pub mod slotted_page;
+pub mod wal;
+pub mod paged_storage;
 
 pub use local::LocalStorage;
 

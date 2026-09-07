@@ -8,7 +8,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-const VERSION: &str = "0.2.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -19,6 +19,7 @@ fn main() {
     }
 
     match args[0].as_str() {
+        "serve" => handle_serve(&args[1..]),
         "create" => handle_create(&args[1..]),
         "delete" => handle_delete(&args[1..]),
         "inspect" => handle_inspect(&args[1..]),
@@ -61,7 +62,7 @@ fn handle_create(args: &[String]) {
     match fs::create_dir_all(path) {
         Ok(_) => {
             println!("✓ Creating database at: {}", path.display());
-            match Database::open_local(path) {
+            match Database::open(path) {
                 Ok(db) => {
                     // Set custom name if provided
                     if let Some(name) = db_name {
@@ -74,7 +75,10 @@ fn handle_create(args: &[String]) {
 
                     println!("✓ Database initialized successfully!");
                     println!("\nNext steps:");
-                    println!("  kelp shell {} # Launch the interactive shell", path.display());
+                    println!(
+                        "  kelp shell {} # Launch the interactive shell",
+                        path.display()
+                    );
                     println!("  kelp inspect {} # View database details", path.display());
                 }
                 Err(e) => {
@@ -141,41 +145,45 @@ fn handle_inspect(args: &[String]) {
         return;
     }
 
-    match Database::open_local(&path) {
-        Ok(db) => {
-            match db.inspect() {
-                Ok(summary) => {
-                    println!("\n╔════════════════════════════════════════════════════════╗");
-                    println!("║              Database Inspection Report                  ║");
-                    println!("╚════════════════════════════════════════════════════════╝\n");
+    match Database::open(&path) {
+        Ok(db) => match db.inspect() {
+            Ok(summary) => {
+                println!("\n╔════════════════════════════════════════════════════════╗");
+                println!("║              Database Inspection Report                  ║");
+                println!("╚════════════════════════════════════════════════════════╝\n");
 
-                    println!("📦 Database Information:");
-                    println!("   Name:              {}", summary.name);
-                    println!("   Path:              {}", summary.path);
-                    println!("   Backend:           {}\n", summary.storage_backend);
+                println!("📦 Database Information:");
+                println!("   Name:              {}", summary.name);
+                println!("   Path:              {}", summary.path);
+                println!("   Backend:           {}\n", summary.storage_backend);
 
-                    println!("📊 Statistics:");
-                    println!("   Total Size:        {} bytes", format_bytes(summary.total_size_bytes));
-                    println!("   Schemas:           {}", summary.schema_count);
-                    println!("   Object Types:      {}", summary.object_type_count);
-                    println!("   Objects:           {}\n", summary.object_count);
+                println!("📊 Statistics:");
+                println!(
+                    "   Total Size:        {} bytes",
+                    format_bytes(summary.total_size_bytes)
+                );
+                println!("   Schemas:           {}", summary.schema_count);
+                println!("   Object Types:      {}", summary.object_type_count);
+                println!("   Objects:           {}\n", summary.object_count);
 
-                    if !summary.precomputed_queries.is_empty() {
-                        println!("⚡ Precomputed Queries:");
-                        for q in summary.precomputed_queries {
-                            println!("   • {}", q);
-                        }
-                        println!();
+                if !summary.precomputed_queries.is_empty() {
+                    println!("⚡ Precomputed Queries:");
+                    for q in summary.precomputed_queries {
+                        println!("   • {}", q);
                     }
-
-                    println!("💡 Quick commands:");
-                    println!("   kelp shell {}  # Launch interactive shell", path.display());
-                    println!("   kelp delete {} # Delete this database", path.display());
                     println!();
                 }
-                Err(e) => eprintln!("✗ Error inspecting database: {}", e),
+
+                println!("💡 Quick commands:");
+                println!(
+                    "   kelp shell {}  # Launch interactive shell",
+                    path.display()
+                );
+                println!("   kelp delete {} # Delete this database", path.display());
+                println!();
             }
-        }
+            Err(e) => eprintln!("✗ Error inspecting database: {}", e),
+        },
         Err(e) => eprintln!("✗ Failed to open database: {}", e),
     }
 }
@@ -207,7 +215,7 @@ fn handle_shell(args: &[String]) {
     // Parse --debug flag
     let debug = args.iter().any(|a| a == "--debug");
 
-    match Database::open_local(&path) {
+    match Database::open(&path) {
         Ok(db) => {
             let config = ShellConfig {
                 debug,
@@ -221,6 +229,38 @@ fn handle_shell(args: &[String]) {
         Err(e) => {
             eprintln!("✗ Failed to open database: {}", e);
         }
+    }
+}
+
+/// Start the HTTP API server for a database directory.
+fn handle_serve(args: &[String]) {
+    let path = if args.is_empty() { PathBuf::from(".") } else { PathBuf::from(&args[0]) };
+    // parse optional addr and --auth-token <token>
+    let mut addr = "0.0.0.0:7878".to_string();
+    let mut auth_token: Option<String> = None;
+
+    if args.len() > 1 {
+        // first non-flag after path may be addr
+        if !args[1].starts_with("--") {
+            addr = args[1].clone();
+        }
+    }
+
+    // look for --auth-token <token>
+    for i in 0..args.len() {
+        if args[i] == "--auth-token" && i + 1 < args.len() {
+            auth_token = Some(args[i + 1].clone());
+        }
+    }
+
+    if !path.exists() {
+        eprintln!("Database not found at: {}", path.display());
+        return;
+    }
+
+    match kelp_db::server::serve(path, &addr, auth_token) {
+        Ok(_) => println!("Server terminated"),
+        Err(e) => eprintln!("Failed to start server: {}", e),
     }
 }
 
@@ -294,7 +334,7 @@ fn handle_help(args: &[String]) {
                 println!("  object create|get|list|update|delete");
                 println!("  query <Type> <conditions>");
                 println!("  inspect");
-                println!("  debug [on|off|status]");
+                println!("  debug [on|off|true|false|status]");
                 println!("  help [command]");
                 println!("  exit\n");
             }
@@ -316,6 +356,9 @@ fn print_main_help() {
 
     println!("  create <path> [--name <name>]");
     println!("      Create a new database at <path>\n");
+
+    println!("  serve <path> [addr] [--auth-token <token>]");
+    println!("      Start HTTP API server for a database (addr default: 0.0.0.0:7878)\n");
 
     println!("  shell [<path>] [--debug]");
     println!("      Launch interactive shell (default path: .)\n");
@@ -359,8 +402,6 @@ fn print_main_help() {
     println!("For more information and tutorials, visit:");
     println!("  https://github.com/OneAM-Labs/kelp\n");
 }
-
-
 
 fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];

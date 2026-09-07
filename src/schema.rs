@@ -135,8 +135,12 @@ impl FieldDef {
 pub struct Schema {
     /// Name of the object type (e.g., "Customer", "Order")
     pub name: String,
+    /// Schema version; bump when field meaning or layout changes.
+    pub schema_version: u32,
     /// Fields in this schema
     pub fields: HashMap<String, FieldDef>,
+    /// Deterministic field ordering for schema-compiled physical layouts.
+    pub field_order: Vec<String>,
 }
 
 impl Schema {
@@ -144,14 +148,89 @@ impl Schema {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            schema_version: 1,
             fields: HashMap::new(),
+            field_order: Vec::new(),
         }
     }
 
     /// Add a field to this schema.
     pub fn add_field(mut self, field: FieldDef) -> Self {
+        if !self.fields.contains_key(&field.name) {
+            self.field_order.push(field.name.clone());
+        }
         self.fields.insert(field.name.clone(), field);
         self
+    }
+
+    /// Get a stable field identifier for a field name.
+    pub fn field_id(&self, name: &str) -> Option<FieldId> {
+        self.field_order
+            .iter()
+            .position(|field_name| field_name == name)
+            .map(|idx| FieldId::new((idx as u16) + 1))
+    }
+
+    /// Get the field for a stable field ID.
+    pub fn field_by_id(&self, field_id: FieldId) -> Option<(&String, &FieldDef)> {
+        let idx = field_id.as_u16().saturating_sub(1) as usize;
+        let name = self.field_order.get(idx)?;
+        let field = self.fields.get(name)?;
+        Some((name, field))
+    }
+
+    /// Compile a deterministic physical layout for this schema.
+    pub fn layout(&self) -> SchemaLayout {
+        let mut fixed_size = 0usize;
+        let mut fields = Vec::with_capacity(self.field_order.len());
+        let mut variable_fields = Vec::new();
+
+        for (idx, field_name) in self.field_order.iter().enumerate() {
+            let field_def = self.fields.get(field_name).expect("field present");
+            let field_id = FieldId::new((idx as u16) + 1);
+            let (is_fixed, width, is_variable) = match field_def.field_type {
+                FieldType::String | FieldType::Reference => (false, None, true),
+                FieldType::Integer => (true, Some(8), false),
+                FieldType::Float => (true, Some(8), false),
+                FieldType::Boolean => (true, Some(1), false),
+            };
+
+            if is_fixed {
+                fixed_size += width.unwrap_or(0);
+            }
+
+            let layout = FieldLayout {
+                field_id,
+                name: field_name.clone(),
+                field_type: field_def.field_type,
+                offset: if is_fixed {
+                    fixed_size.saturating_sub(width.unwrap_or(0))
+                } else {
+                    0
+                },
+                width,
+                nullable: field_def.nullable,
+                is_fixed,
+                is_variable,
+                overflow_capable: matches!(
+                    field_def.field_type,
+                    FieldType::String | FieldType::Reference
+                ),
+            };
+
+            if is_variable {
+                variable_fields.push(layout.clone());
+            }
+            fields.push(layout);
+        }
+
+        SchemaLayout {
+            schema_name: self.name.clone(),
+            schema_version: self.schema_version,
+            fields,
+            fixed_size,
+            variable_fields,
+        }
     }
 
     /// Get a field by name.
@@ -166,7 +245,7 @@ impl Schema {
 
     /// Get all field names.
     pub fn field_names(&self) -> impl Iterator<Item = &String> {
-        self.fields.keys()
+        self.field_order.iter()
     }
 
     /// Validate schema for correctness.
@@ -174,6 +253,12 @@ impl Schema {
         if self.name.is_empty() {
             return Err(crate::Error::SchemaError {
                 reason: "Schema name cannot be empty".to_string(),
+            });
+        }
+
+        if self.schema_version == 0 {
+            return Err(crate::Error::SchemaError {
+                reason: "Schema version must be greater than zero".to_string(),
             });
         }
 
@@ -218,6 +303,56 @@ impl ObjectType {
 impl AsRef<str> for ObjectType {
     fn as_ref(&self) -> &str {
         &self.name
+    }
+}
+
+/// Stable field identifier used in physical storage layouts.
+///
+/// Field IDs are assigned by schema order and remain stable across a schema version.
+/// They are not derived from field names or hash values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct FieldId(pub u16);
+
+impl FieldId {
+    pub fn new(id: u16) -> Self {
+        Self(id)
+    }
+
+    pub fn as_u16(self) -> u16 {
+        self.0
+    }
+}
+
+/// Compiled layout metadata for a field.
+///
+/// This is intentionally schema-driven and can describe both fixed-width and
+/// variable-width physical encoding strategies.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldLayout {
+    pub field_id: FieldId,
+    pub name: String,
+    pub field_type: FieldType,
+    pub offset: usize,
+    pub width: Option<usize>,
+    pub nullable: bool,
+    pub is_fixed: bool,
+    pub is_variable: bool,
+    pub overflow_capable: bool,
+}
+
+/// Compiled storage layout for a schema.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaLayout {
+    pub schema_name: String,
+    pub schema_version: u32,
+    pub fields: Vec<FieldLayout>,
+    pub fixed_size: usize,
+    pub variable_fields: Vec<FieldLayout>,
+}
+
+impl SchemaLayout {
+    pub fn field_for_id(&self, field_id: FieldId) -> Option<&FieldLayout> {
+        self.fields.iter().find(|field| field.field_id == field_id)
     }
 }
 

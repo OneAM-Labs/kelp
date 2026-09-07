@@ -29,3 +29,6 @@ pub use query::{Predicate, QueryResult};
 pub use schema::{FieldDef, FieldType, ObjectType, Schema};
 pub use shell::{Shell, ShellConfig};
 pub use value::Value;
+pub mod server;
+
+pub use server::serve as start_server;
